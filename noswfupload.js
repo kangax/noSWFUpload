@@ -99,34 +99,39 @@ var $ = {
                     );
                 } else {
                     var li  = document.createElement("li"),
-                        a   = li.appendChild(document.createElement("a"));
+                        span   = li.appendChild(document.createElement("span")),
+                        deleteLink = li.appendChild(document.createElement("a"));
+                        
                     wrap.files.unshift(files.item(i));
-                    a.href = "#" + value;
-                    a.alt = a.title = (files.item(i).fileSize ? "[" + $.size(files.item(i).fileSize) + "] " : "") + value;
+                    
+                    deleteLink.appendChild(document.createTextNode($.lang.deleteMessage));
+                    deleteLink.title = $.lang.deleteMessageExt;
+                    deleteLink.className = 'delete-link';
+                    deleteLink.href = '#';
+                    
+                    span.title = (files.item(i).fileSize ? "[" + $.size(files.item(i).fileSize) + "] " : "") + value;
+                    
                     li.className = ext;
-                    $.text(a, value);
-                    $.event
-                        .add(a, "click", $.empty)
-                        .add(a, "dblclick", files.item(i).remove = (function(li){
-                            return function(e){
-                                for(var i = 0, childNodes = li.parentNode.getElementsByTagName("li"); i < childNodes.length; i++){
-                                    if(childNodes[i] === li){
-                                        var value = wrap.files[i].fileName;
-                                        $.event
-                                            .del(li, "click", $.empty)
-                                            .del(li, "dblclick", arguments.callee)
-                                        ;
-                                        li.parentNode.removeChild(li);
-                                        li = a = null;
-                                        wrap.files.splice(i, 1);
-                                        $.text(wrap.dom.info, $.lang.removedFile.replace(/{fileName}/g, value));
-                                        break;
-                                    }
-                                };
-                                return  $.empty(e);
+                    $.text(span, value);
+                    $.event.add(deleteLink, "click", files.item(i).remove = (function(li){
+                        return function(e){
+                            for(var i = 0, childNodes = li.parentNode.getElementsByTagName("li"); i < childNodes.length; i++){
+                                if(childNodes[i] === li){
+                                    var value = wrap.files[i].fileName;
+                                    $.event
+                                        .del(li, "click", $.empty)
+                                        .del(li, "dblclick", arguments.callee)
+                                    ;
+                                    li.parentNode.removeChild(li);
+                                    li = span = null;
+                                    wrap.files.splice(i, 1);
+                                    $.text(wrap.dom.info, $.lang.removedFile.replace(/{fileName}/g, value));
+                                    break;
+                                }
                             };
-                        })(li))
-                    ;
+                            return $.empty(e);
+                        };
+                    })(li));
                     if(typeof files.item(i).fileSize != "number")
                         files.item(i).fileSize = -1;
                     if(wrap.dom.ul.firstChild)
@@ -180,7 +185,12 @@ var $ = {
         errorSize:"WARNING - Maximum size is {maxSize}. File {fileName} is {fileSize}",
         
         // file without a valid type
-        errorType:"WARNING - File {fileName} has not a valid type: {fileType}"
+        errorType:"WARNING - File {fileName} has not a valid type: {fileType}",
+        
+        deleteMessage: "Delete",
+        
+        deleteMessageExt: "Delete this file from the queue"
+        
     },
     
     /**
@@ -250,6 +260,7 @@ var $ = {
                     },
                     false
                 );
+                
                 xhr.open("post", handler.url, true);
                 if(!xhr.upload){
                     var rpe      = {loaded:0, total:handler.file.fileSize, simulation:true};
@@ -265,7 +276,7 @@ var $ = {
                     xhr.onerror = function(){
                         upload.onerror({});
                     };
-                    xhr.onreadystatechange = function(){
+                    xhr.onreadystatechange = function(r){
                         switch(xhr.readyState){
                             case    2:
                             case    3:
@@ -278,7 +289,8 @@ var $ = {
                                 rpe.interval = 0;
                                 rpe.loaded = rpe.total;
                                 upload.onprogress(rpe);
-                                upload[199 < xhr.status && xhr.status < 400 ? "onload" : "onerror"]({});
+                                handler.oneachload(xhr);
+                                upload[199 < xhr.status && xhr.status < 400 ? "onload" : "onerror"](xhr);
                                 break;
                         }
                     };
@@ -472,7 +484,7 @@ var $ = {
             total   = document.createElement("span"),
             current = total.cloneNode(true),
             ul      = document.createElement("ul"),
-            info    = total.cloneNode(true)
+            info    = document.createElement('p')
         ;
         
         // be sure input accept multiple files
